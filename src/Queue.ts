@@ -1,6 +1,12 @@
 import {EmbedBuilder, TextBasedChannel, VoiceBasedChannel} from "discord.js";
-import {AudioPlayerStatus, AudioResource, createAudioPlayer, VoiceConnection} from "@discordjs/voice";
-import play, {YouTubeVideo} from "play-dl";
+import {
+	AudioPlayerStatus,
+	AudioResource,
+	createAudioPlayer,
+	PlayerSubscription,
+	VoiceConnection
+} from "@discordjs/voice";
+import {YouTubeVideo} from "play-dl";
 
 export interface Song {
 	video: YouTubeVideo,
@@ -20,21 +26,14 @@ export async function addSongToQueue(song: Song, voiceChannel: VoiceBasedChannel
 	if (queues.length <= 1) {
 		isAdding = true;
 		await playSong(voiceChannel, textChannel, connection);
-		await onEvent(voiceChannel, textChannel, connection);
 		isAdding = false;
+		const socket = connection.subscribe(player)
+		await eventSocket(socket!, voiceChannel, textChannel, connection);
 	}
 }
 
-export function getQueue() {
-	return queues;
-}
-
-export async function skipSong() {
-	player.stop();
-}
-
-async function onEvent(voiceChannel:VoiceBasedChannel, textChannel:TextBasedChannel, connection:VoiceConnection){
-	player.on("stateChange", (oldState, newState) => {
+async function eventSocket(socket: PlayerSubscription, voiceChannel: VoiceBasedChannel, textChannel: TextBasedChannel, connection: VoiceConnection) {
+	socket.player.on("stateChange", (oldState, newState) => {
 		if (newState.status === AudioPlayerStatus.Idle && oldState.status !== AudioPlayerStatus.Idle) {
 			console.log("재생이 끝났어!");
 			queues.shift();
@@ -51,23 +50,33 @@ async function onEvent(voiceChannel:VoiceBasedChannel, textChannel:TextBasedChan
 			}
 		}
 	});
-	player.on("stateChange", async (oldState, newState) => {
+	socket.player.on("stateChange", async (oldState, newState) => {
 		if (newState.status === AudioPlayerStatus.AutoPaused) {
 			queues.splice(0)
+			socket.unsubscribe();
 		}
 	});
-	player.on("error", () => {
+	socket.player.on("error", () => {
 		queues.splice(0);
 		player.removeAllListeners('error');
 		player.removeAllListeners('stateChange');
 	});
 }
 
+export function getQueue() {
+	return queues;
+}
+
+export async function skipSong() {
+	player.stop();
+}
+
 export async function playSong(voiceChannel: VoiceBasedChannel, textChannel: TextBasedChannel, connection: VoiceConnection) {
+	await connection.subscribe(player);
 	const video = queues[0].video;
 	const resource = queues[0].audioSource;
 	await player.play(resource);
-	await connection.subscribe(player);
+
 	const successEmbed = new EmbedBuilder()
 		.setAuthor({
 			name: '지금 노래 재생중 !',
