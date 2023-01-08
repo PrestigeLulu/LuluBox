@@ -1,4 +1,4 @@
-import { config } from "dotenv";
+import {config} from "dotenv";
 config();
 
 import Bot from "./src/Bot/Bot";
