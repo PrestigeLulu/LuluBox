@@ -1,5 +1,5 @@
 import {EmbedBuilder, GuildMember, SlashCommandBuilder} from "discord.js";
-import {addSongToQueue, getIsAdding, getQueue, getTime, Song} from '../../Queue';
+import {addSongToQueue, getIsAdding, getQueue, getQueueLengthPlus, getTime, Song} from '../../Queue';
 import SlashCommand from "../../Structures/SlashCommand";
 import play from 'play-dl';
 import {createAudioResource, joinVoiceChannel} from "@discordjs/voice";
@@ -43,18 +43,18 @@ const PlayCommand = new SlashCommand(slashCommandBuilder, ['p'], async (bot, int
 			return;
 		}
 		const video = yt_info[0];
-		const stream = await play.stream(video.url, {discordPlayerCompatibility: true});
-		const resource = await createAudioResource(stream.stream, {inputType: stream.type});
 		const embed = new EmbedBuilder()
 			.setAuthor({
-				name: (getQueue().length + 1) + '번 대기열에 추가됨!',
+				name: (getQueueLengthPlus()) + '번 대기열에 추가됨!',
 			})
 			.setURL(video.url)
 			.setTitle(`${video.title}`)
 			.setColor('#fbb753')
 			.setThumbnail(video.thumbnails[0].url)
 			.setDescription(`**YOUTUBE** | \`${getTime(video)}\``)
-		await interaction.reply({embeds: [embed]});
+		await interaction.reply({embeds: [embed]}).catch((error:any)=>console.error);
+		const stream = await play.stream(video.url, {discordPlayerCompatibility: true});
+		const resource = await createAudioResource(stream.stream, {inputType: stream.type});
 		const songI:Song = {
 			video: video,
 			audioSource: resource,

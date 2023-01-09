@@ -40,8 +40,8 @@ const SkipCommand = new SlashCommand(slashCommandBuilder, ['s'], async (bot, int
 		const embed = new EmbedBuilder()
 			.setTitle('노래를 넘겼어!')
 			.setColor('#fbb753')
-		await interaction.reply({embeds: [embed]});
-		await skipSong();
+		await interaction.reply({embeds: [embed]}).catch((error:any) => {console.log(error)});
+			skipSong();
 	}
 });
 

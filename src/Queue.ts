@@ -67,7 +67,11 @@ export function getQueue() {
 	return queues;
 }
 
-export async function skipSong() {
+export function getQueueLengthPlus() {
+	return queues.length + 1;
+}
+
+export function skipSong() {
 	player.stop();
 }
 
