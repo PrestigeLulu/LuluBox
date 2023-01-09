@@ -16,8 +16,6 @@ const slashCommandBuilder = new SlashCommandBuilder()
 
 const PlayCommand = new SlashCommand(slashCommandBuilder, ['p'], async (bot, interaction) => {
 	const song = interaction.options.getString('song', true);
-	console.log(getQueue().length)
-	console.log(getIsAdding())
 	if(getIsAdding()){
 		const embed = new EmbedBuilder()
 			.setTitle('너무 빠른것같아! 잠시만 기다려줘!')
