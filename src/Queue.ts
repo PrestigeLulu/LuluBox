@@ -1,11 +1,5 @@
 import {EmbedBuilder, TextBasedChannel, VoiceBasedChannel} from "discord.js";
-import {
-	AudioPlayerStatus,
-	AudioResource,
-	createAudioPlayer,
-	PlayerSubscription,
-	VoiceConnection
-} from "@discordjs/voice";
+import {AudioPlayerStatus, AudioResource, createAudioPlayer, VoiceConnection} from "@discordjs/voice";
 import {YouTubeVideo} from "play-dl";
 
 export interface Song {
@@ -14,8 +8,40 @@ export interface Song {
 }
 
 const queues: Song[] = [];
-const player = createAudioPlayer();
 let isAdding = false;
+
+const player = createAudioPlayer();
+let globalVoiceChannel: VoiceBasedChannel|null = null;
+let globalTextChannel: TextBasedChannel|null = null;
+let globalConnection: VoiceConnection|null = null;
+
+player.on("stateChange", async (oldState, newState) => {
+	if(globalVoiceChannel === null || globalTextChannel === null || globalConnection === null) return;
+	if (newState.status === AudioPlayerStatus.Idle && oldState.status !== AudioPlayerStatus.Idle) {
+		queues.shift();
+		if (queues.length > 0) {
+			await playSong(globalVoiceChannel, globalTextChannel, globalConnection);
+		} else {
+			if (globalConnection.disconnect()) {
+				const embed = new EmbedBuilder()
+					.setTitle('노래를 전부 재생했어!')
+					.setColor('#fbb753');
+				globalTextChannel.send({embeds: [embed]});
+				globalConnection.destroy();
+			}
+		}
+	}
+});
+player.on("stateChange", async (oldState, newState) => {
+	if(globalVoiceChannel === null || globalTextChannel === null || globalConnection === null) return;
+	if (newState.status === AudioPlayerStatus.AutoPaused) {
+		queues.splice(0)
+		await eventSocket(null, null, null);
+	}
+});
+player.on("error", () => {
+	queues.splice(0);
+});
 
 export function getIsAdding() {
 	return isAdding;
@@ -27,40 +53,14 @@ export async function addSongToQueue(song: Song, voiceChannel: VoiceBasedChannel
 		isAdding = true;
 		await playSong(voiceChannel, textChannel, connection);
 		isAdding = false;
-		const socket = connection.subscribe(player)
-		await eventSocket(socket!, voiceChannel, textChannel, connection);
+		await eventSocket(voiceChannel, textChannel, connection);
 	}
 }
 
-async function eventSocket(socket: PlayerSubscription, voiceChannel: VoiceBasedChannel, textChannel: TextBasedChannel, connection: VoiceConnection) {
-	socket.player.on("stateChange", (oldState, newState) => {
-		if (newState.status === AudioPlayerStatus.Idle && oldState.status !== AudioPlayerStatus.Idle) {
-			console.log("재생이 끝났어!");
-			queues.shift();
-			if (queues.length > 0) {
-				playSong(voiceChannel, textChannel, connection);
-			} else {
-				if (connection.disconnect()) {
-					const embed = new EmbedBuilder()
-						.setTitle('노래를 전부 재생했어!')
-						.setColor('#fbb753');
-					textChannel.send({embeds: [embed]});
-					connection.destroy();
-				}
-			}
-		}
-	});
-	socket.player.on("stateChange", async (oldState, newState) => {
-		if (newState.status === AudioPlayerStatus.AutoPaused) {
-			queues.splice(0)
-			socket.unsubscribe();
-		}
-	});
-	socket.player.on("error", () => {
-		queues.splice(0);
-		player.removeAllListeners('error');
-		player.removeAllListeners('stateChange');
-	});
+async function eventSocket(voiceChannel: VoiceBasedChannel|null, textChannel: TextBasedChannel|null, connection: VoiceConnection|null) {
+	globalVoiceChannel = voiceChannel;
+	globalTextChannel = textChannel;
+	globalConnection = connection;
 }
 
 export function getQueue() {
