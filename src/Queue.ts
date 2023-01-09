@@ -11,29 +11,37 @@ const queues: Song[] = [];
 let isAdding = false;
 
 const player = createAudioPlayer();
-let globalVoiceChannel: VoiceBasedChannel|null = null;
-let globalTextChannel: TextBasedChannel|null = null;
-let globalConnection: VoiceConnection|null = null;
+let globalVoiceChannel: VoiceBasedChannel | null = null;
+let globalTextChannel: TextBasedChannel | null = null;
+let globalConnection: VoiceConnection | null = null;
 
 player.on("stateChange", async (oldState, newState) => {
-	if(globalVoiceChannel === null || globalTextChannel === null || globalConnection === null) return;
+	if (globalVoiceChannel === null || globalTextChannel === null || globalConnection === null) return;
 	if (newState.status === AudioPlayerStatus.Idle && oldState.status !== AudioPlayerStatus.Idle) {
 		queues.shift();
 		if (queues.length > 0) {
 			await playSong(globalVoiceChannel, globalTextChannel, globalConnection);
 		} else {
-			if (globalConnection.disconnect()) {
-				const embed = new EmbedBuilder()
-					.setTitle('노래를 전부 재생했어!')
-					.setColor('#fbb753');
-				globalTextChannel.send({embeds: [embed]});
-				globalConnection.destroy();
-			}
+			const embed = new EmbedBuilder()
+				.setTitle('노래를 전부 재생했어!')
+				.setDescription('노래가 1분동안 추가되지 않으면 자동으로 나갈게!')
+				.setColor('#fbb753');
+			globalTextChannel.send({embeds: [embed]});
+			setTimeout(() => {
+				if (queues.length === 0) {
+					const embed = new EmbedBuilder()
+						.setTitle('노래를 전부 재생했어!')
+						.setDescription('노래가 1분동안 추가되지 않아서 나갈게!')
+						.setColor('#fbb753');
+					globalTextChannel?.send({embeds: [embed]});
+					globalConnection?.destroy();
+				}
+			}, 1000 * 60);
 		}
 	}
 });
 player.on("stateChange", async (oldState, newState) => {
-	if(globalVoiceChannel === null || globalTextChannel === null || globalConnection === null) return;
+	if (globalVoiceChannel === null || globalTextChannel === null || globalConnection === null) return;
 	if (newState.status === AudioPlayerStatus.AutoPaused) {
 		queues.splice(0)
 		await eventSocket(null, null, null);
@@ -57,7 +65,7 @@ export async function addSongToQueue(song: Song, voiceChannel: VoiceBasedChannel
 	}
 }
 
-async function eventSocket(voiceChannel: VoiceBasedChannel|null, textChannel: TextBasedChannel|null, connection: VoiceConnection|null) {
+async function eventSocket(voiceChannel: VoiceBasedChannel | null, textChannel: TextBasedChannel | null, connection: VoiceConnection | null) {
 	globalVoiceChannel = voiceChannel;
 	globalTextChannel = textChannel;
 	globalConnection = connection;
