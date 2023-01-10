@@ -17,7 +17,7 @@ const slashCommandBuilder = new SlashCommandBuilder()
 
 const PlayCommand = new SlashCommand(slashCommandBuilder, ['p'], async (bot, interaction) => {
 	const song = interaction.options.getString('song', true);
-	if(getIsAdding()){
+	if (getIsAdding()) {
 		const embed = new EmbedBuilder()
 			.setTitle('너무 빠른것같아! 잠시만 기다려줘!')
 			.setColor('#fbb753');
@@ -38,29 +38,76 @@ const PlayCommand = new SlashCommand(slashCommandBuilder, ['p'], async (bot, int
 			guildId: channel.guild.id,
 			adapterCreator: channel.guild.voiceAdapterCreator
 		});
-		const yt_info = await play.search(song, {limit: 1});
-		if (!yt_info || yt_info.length < 1) {
-			await interaction.reply('노래를 찾을수 없어!');
-			return;
+		if (song.startsWith('https://youtu.be/watch?v=') || song.startsWith('https://www.youtu.be/watch?v=') || song.startsWith('https://youtube.com/watch?v=') || song.startsWith('https://www.youtube.com/watch?v=')) {
+			if (!(await play.validate(song))) {
+				const embed = new EmbedBuilder()
+					.setTitle('유효하지 않은 링크야!')
+					.setColor('#fbb753')
+				await interaction.reply({embeds: [embed]});
+				return;
+			}
+			await play.video_info(song)
+				.then(async (yt_info) => {
+					const video = yt_info.video_details;
+					if (video.live) {
+						const embed = new EmbedBuilder()
+							.setTitle('라이브는 지원하지 않아!')
+							.setColor('#fbb753')
+						await interaction.reply({embeds: [embed]});
+						return;
+					}
+					const embed = new EmbedBuilder()
+						.setAuthor({
+							name: (getQueueLengthPlus()) + '번 대기열에 추가됨!',
+						})
+						.setURL(video.url)
+						.setTitle(`${video.title}`)
+						.setColor('#fbb753')
+						.setThumbnail(video.thumbnails[0].url)
+						.setDescription(`**YOUTUBE** | \`${getTime(video)}\``)
+					await interaction.reply({embeds: [embed]}).catch((error: any) => console.log(error));
+					const stream = await play.stream_from_info(yt_info);
+					const resource = await createAudioResource(stream.stream, {inputType: stream.type});
+					const songI: Song = {
+						video: video,
+						audioSource: resource,
+					}
+					await addSongToQueue(interaction.guildId!, songI, channel, interaction.channel!, connection);
+				})
+				.catch(async (err: any) => {
+					const embed = new EmbedBuilder()
+						.setTitle('알수없는 오류야!')
+						.setColor('#fbb753')
+					await interaction.reply({embeds: [embed]});
+				})
+		} else {
+			const yt_info = await play.search(song, {limit: 1});
+			if (!yt_info || yt_info.length < 1) {
+				const embed = new EmbedBuilder()
+					.setTitle('노래를 찾을 수 없어!')
+					.setColor('#fbb753')
+				await interaction.reply({embeds: [embed]});
+				return;
+			}
+			const video = yt_info[0];
+			const embed = new EmbedBuilder()
+				.setAuthor({
+					name: (getQueueLengthPlus()) + '번 대기열에 추가됨!',
+				})
+				.setURL(video.url)
+				.setTitle(`${video.title}`)
+				.setColor('#fbb753')
+				.setThumbnail(video.thumbnails[0].url)
+				.setDescription(`**YOUTUBE** | \`${getTime(video)}\``)
+			await interaction.reply({embeds: [embed]}).catch((error: any) => console.log(error));
+			const stream = await play.stream(video.url, {discordPlayerCompatibility: true});
+			const resource = await createAudioResource(stream.stream, {inputType: stream.type});
+			const songI: Song = {
+				video: video,
+				audioSource: resource,
+			}
+			await addSongToQueue(interaction.guildId!, songI, channel, interaction.channel!, connection);
 		}
-		const video = yt_info[0];
-		const embed = new EmbedBuilder()
-			.setAuthor({
-				name: (getQueueLengthPlus()) + '번 대기열에 추가됨!',
-			})
-			.setURL(video.url)
-			.setTitle(`${video.title}`)
-			.setColor('#fbb753')
-			.setThumbnail(video.thumbnails[0].url)
-			.setDescription(`**YOUTUBE** | \`${getTime(video)}\``)
-		await interaction.reply({embeds: [embed]}).catch((error:any)=>console.log(error));
-		const stream = await play.stream(video.url, {discordPlayerCompatibility: true});
-		const resource = await createAudioResource(stream.stream, {inputType: stream.type});
-		const songI:Song = {
-			video: video,
-			audioSource: resource,
-		}
-		await addSongToQueue(interaction.guildId!, songI, channel, interaction.channel!, connection);
 	}
 });
 
