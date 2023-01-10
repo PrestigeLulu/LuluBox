@@ -1,8 +1,9 @@
 import {EmbedBuilder, GuildMember, SlashCommandBuilder} from "discord.js";
-import {addSongToQueue, getIsAdding, getQueue, getQueueLengthPlus, getTime, Song} from '../../Queue';
+import {addSongToQueue, getIsAdding, getQueueLengthPlus, getTime} from '../../Queue';
 import SlashCommand from "../../Structures/SlashCommand";
 import play from 'play-dl';
 import {createAudioResource, joinVoiceChannel} from "@discordjs/voice";
+import {Song} from "../../DataBase/Schema/Song";
 
 const slashCommandBuilder = new SlashCommandBuilder()
 	.setName('play')
@@ -52,14 +53,14 @@ const PlayCommand = new SlashCommand(slashCommandBuilder, ['p'], async (bot, int
 			.setColor('#fbb753')
 			.setThumbnail(video.thumbnails[0].url)
 			.setDescription(`**YOUTUBE** | \`${getTime(video)}\``)
-		await interaction.reply({embeds: [embed]}).catch((error:any)=>console.error);
+		await interaction.reply({embeds: [embed]}).catch((error:any)=>console.log(error));
 		const stream = await play.stream(video.url, {discordPlayerCompatibility: true});
 		const resource = await createAudioResource(stream.stream, {inputType: stream.type});
 		const songI:Song = {
 			video: video,
 			audioSource: resource,
 		}
-		await addSongToQueue(songI, channel, interaction.channel!, connection);
+		await addSongToQueue(interaction.guildId!, songI, channel, interaction.channel!, connection);
 	}
 });
 

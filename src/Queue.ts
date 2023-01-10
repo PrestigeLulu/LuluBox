@@ -1,11 +1,8 @@
 import {EmbedBuilder, TextBasedChannel, VoiceBasedChannel} from "discord.js";
-import {AudioPlayerStatus, AudioResource, createAudioPlayer, VoiceConnection} from "@discordjs/voice";
+import {AudioPlayerStatus, createAudioPlayer, VoiceConnection} from "@discordjs/voice";
 import {YouTubeVideo} from "play-dl";
-
-export interface Song {
-	video: YouTubeVideo,
-	audioSource: AudioResource
-}
+import {Song} from "./DataBase/Schema/Song";
+import {addQueue} from "./DataBase/Schema/SongSchema";
 
 const queues: Song[] = [];
 let isAdding = false;
@@ -55,7 +52,8 @@ export function getIsAdding() {
 	return isAdding;
 }
 
-export async function addSongToQueue(song: Song, voiceChannel: VoiceBasedChannel, textChannel: TextBasedChannel, connection: VoiceConnection) {
+export async function addSongToQueue(guildId:string, song: Song, voiceChannel: VoiceBasedChannel, textChannel: TextBasedChannel, connection: VoiceConnection) {
+	// await addQueue(guildId, song, voiceChannel, textChannel, connection);
 	queues.push(song);
 	if (queues.length <= 1) {
 		isAdding = true;
