@@ -2,7 +2,6 @@ import {EmbedBuilder, TextBasedChannel, VoiceBasedChannel} from "discord.js";
 import {AudioPlayerStatus, createAudioPlayer, VoiceConnection} from "@discordjs/voice";
 import {YouTubeVideo} from "play-dl";
 import {Song} from "./DataBase/Schema/Song";
-import {addQueue} from "./DataBase/Schema/SongSchema";
 
 const queues: Song[] = [];
 let isAdding = false;
@@ -53,7 +52,6 @@ export function getIsAdding() {
 }
 
 export async function addSongToQueue(guildId:string, song: Song, voiceChannel: VoiceBasedChannel, textChannel: TextBasedChannel, connection: VoiceConnection) {
-	// await addQueue(guildId, song, voiceChannel, textChannel, connection);
 	queues.push(song);
 	if (queues.length <= 1) {
 		isAdding = true;
@@ -74,6 +72,9 @@ export function getQueue() {
 }
 
 export function getQueueLengthPlus() {
+	if(queues.length + 1 === queues.length){
+		return queues.length;
+	}
 	return queues.length + 1;
 }
 
