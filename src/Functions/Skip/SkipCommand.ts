@@ -1,7 +1,7 @@
 import {EmbedBuilder, GuildMember, SlashCommandBuilder} from "discord.js";
 import {createAudioPlayer, getVoiceConnection, NoSubscriberBehavior} from "@discordjs/voice";
 import SlashCommand from "../../Structures/SlashCommand";
-import {getQueue, skipSong} from "../../Queue";
+import {skipSong} from "../../Queue";
 
 const slashCommandBuilder = new SlashCommandBuilder()
 	.setName('skip')
@@ -30,18 +30,20 @@ const SkipCommand = new SlashCommand(slashCommandBuilder, ['s'], async (bot, int
 			await interaction.reply({embeds: [embed]});
 			return;
 		}
-		if(getQueue().length < 1) {
+		/*if(getQueue() < 1) {
 			const embed = new EmbedBuilder()
 				.setTitle('대기열에 노래가 없어!')
 				.setColor('#fbb753')
 			await interaction.reply({embeds: [embed]});
 			return;
-		}
+		}*/
 		const embed = new EmbedBuilder()
 			.setTitle('노래를 넘겼어!')
 			.setColor('#fbb753')
-		await interaction.reply({embeds: [embed]}).catch((error:any) => {console.log(error)});
-			skipSong();
+		await interaction.reply({embeds: [embed]}).catch((error: any) => {
+			console.log(error)
+		});
+		skipSong(interaction.guildId!);
 	}
 });
 

@@ -1,9 +1,9 @@
 import {EmbedBuilder, GuildMember, SlashCommandBuilder} from "discord.js";
-import {addSongToQueue, getIsAdding, getQueueLengthPlus, getTime} from '../../Queue';
+import {addSongToQueue, getQueue, getTime} from '../../Queue';
 import SlashCommand from "../../Structures/SlashCommand";
 import play from 'play-dl';
-import {createAudioResource, joinVoiceChannel} from "@discordjs/voice";
-import {Song} from "../../DataBase/Schema/Song";
+import {createAudioPlayer, createAudioResource, joinVoiceChannel} from "@discordjs/voice";
+import {Song} from "../../DataBase/Interface/Song";
 
 const slashCommandBuilder = new SlashCommandBuilder()
 	.setName('play')
@@ -17,13 +17,7 @@ const slashCommandBuilder = new SlashCommandBuilder()
 
 const PlayCommand = new SlashCommand(slashCommandBuilder, ['p'], async (bot, interaction) => {
 	const song = interaction.options.getString('song', true);
-	if (getIsAdding()) {
-		const embed = new EmbedBuilder()
-			.setTitle('너무 빠른것같아! 잠시만 기다려줘!')
-			.setColor('#fbb753');
-		await interaction.reply({embeds: [embed]});
-		return;
-	}
+	await getQueue(interaction.guildId!)
 	if (!(!(interaction.member instanceof GuildMember) || interaction.member.partial)) {
 		const channel = interaction.member?.voice.channel;
 		if (!channel) {
@@ -57,9 +51,9 @@ const PlayCommand = new SlashCommand(slashCommandBuilder, ['p'], async (bot, int
 						return;
 					}
 					const embed = new EmbedBuilder()
-						.setAuthor({
+						/*.setAuthor({
 							name: (getQueueLengthPlus()) + '번 대기열에 추가됨!',
-						})
+						})*/
 						.setURL(video.url)
 						.setTitle(`${video.title}`)
 						.setColor('#fbb753')
@@ -72,7 +66,7 @@ const PlayCommand = new SlashCommand(slashCommandBuilder, ['p'], async (bot, int
 						video: video,
 						audioSource: resource,
 					}
-					await addSongToQueue(interaction.guildId!, songI, channel, interaction.channel!, connection);
+					await addSongToQueue(interaction.guildId!, songI, channel, interaction.channel!);
 				})
 				.catch(async (err: any) => {
 					const embed = new EmbedBuilder()
@@ -91,22 +85,31 @@ const PlayCommand = new SlashCommand(slashCommandBuilder, ['p'], async (bot, int
 			}
 			const video = yt_info[0];
 			const embed = new EmbedBuilder()
-				.setAuthor({
+				/*.setAuthor({
 					name: (getQueueLengthPlus()) + '번 대기열에 추가됨!',
-				})
+				})*/
 				.setURL(video.url)
 				.setTitle(`${video.title}`)
 				.setColor('#fbb753')
 				.setThumbnail(video.thumbnails[0].url)
 				.setDescription(`**YOUTUBE** | \`${getTime(video)}\``)
 			await interaction.reply({embeds: [embed]}).catch((error: any) => console.log(error));
-			const stream = await play.stream(video.url, {discordPlayerCompatibility: true});
-			const resource = await createAudioResource(stream.stream, {inputType: stream.type});
-			const songI: Song = {
-				video: video,
-				audioSource: resource,
-			}
-			await addSongToQueue(interaction.guildId!, songI, channel, interaction.channel!, connection);
+			await play.stream(video.url, {discordPlayerCompatibility: true})
+				.then(async (stream) => {
+					const resource = createAudioResource(stream.stream, {inputType: stream.type});
+					const songI: Song = {
+						video: video,
+						audioSource: resource,
+					}
+					await addSongToQueue(interaction.guildId!, songI, channel, interaction.channel!);
+				})
+				.catch(async (error: any) => {
+					const embed = new EmbedBuilder()
+						.setTitle('알수없는 오류야!')
+						.setColor('#fbb753')
+						.setDescription(`추정\n\`노래가 삭제됨\`\n\`19금 동영상\`\n${error.name}, ${error.message}`)
+					await interaction.channel?.send({embeds: [embed]});
+				})
 		}
 	}
 });

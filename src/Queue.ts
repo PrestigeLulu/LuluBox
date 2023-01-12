@@ -1,92 +1,103 @@
 import {EmbedBuilder, TextBasedChannel, VoiceBasedChannel} from "discord.js";
-import {AudioPlayerStatus, createAudioPlayer, VoiceConnection} from "@discordjs/voice";
+import {
+	AudioPlayerStatus,
+	createAudioPlayer,
+	createAudioResource,
+	getVoiceConnection,
+	VoiceConnection
+} from "@discordjs/voice";
 import {YouTubeVideo} from "play-dl";
-import {Song} from "./DataBase/Schema/Song";
+import {Song} from "./DataBase/Interface/Song";
+import SongModel from "./DataBase/Schema/SongSchema";
 
 const queues: Song[] = [];
-let isAdding = false;
 
-const player = createAudioPlayer();
 let globalVoiceChannel: VoiceBasedChannel | null = null;
 let globalTextChannel: TextBasedChannel | null = null;
 let globalConnection: VoiceConnection | null = null;
 
-player.on("stateChange", async (oldState, newState) => {
-	if (globalVoiceChannel === null || globalTextChannel === null || globalConnection === null) return;
-	if (newState.status === AudioPlayerStatus.Idle && oldState.status !== AudioPlayerStatus.Idle) {
-		queues.shift();
-		if (queues.length > 0) {
-			await playSong(globalVoiceChannel, globalTextChannel, globalConnection);
-		} else {
+
+export async function addSongToQueue(guildId: string, song: Song, voiceChannel: VoiceBasedChannel, textChannel: TextBasedChannel) {
+	await SongModel.create({
+		guildId: guildId,
+		queue: [],
+		voiceChannel: '',
+		textChannel: '',
+	}).catch((error:any)=>{
+		console.log(error)
+	});
+	/*await SongModel.updateOne({guildId: guildId}, {
+		$push: {song: song},
+		upsert: true
+	})*/
+	// if (0 <= 1) {
+		await playSong(guildId, voiceChannel, textChannel);
+	// }
+}
+
+export async function getQueue(guildId: string) {
+	let result;
+	await SongModel.find({guildId: guildId}).then((song) => {
+		result = song;
+		console.log(result)
+	});
+	return result;
+}
+
+export function skipSong(guildId: string) {
+	queues[0].audioSource.audioPlayer?.stop();
+}
+
+async function setChannel(guildId: string, voiceChannel: VoiceBasedChannel | null, textChannel: TextBasedChannel | null, connection: VoiceConnection | null) {
+	SongModel.updateOne({guildId: guildId}, {
+		voiceChannel: voiceChannel,
+		textChannel: textChannel,
+		connection: connection,
+		upsert: true
+	})
+}
+
+export async function playSong(guildId:string, voiceChannel: VoiceBasedChannel, textChannel: TextBasedChannel) {
+	const resource = createAudioResource('https://www.youtube.com/watch?v=QH2-TGUlwu4');
+	const player = createAudioPlayer();
+
+	player.on("stateChange", async (oldState, newState) => {
+		if (globalVoiceChannel === null || globalTextChannel === null || globalConnection === null) return;
+		if (newState.status === AudioPlayerStatus.Idle && oldState.status !== AudioPlayerStatus.Idle) {
+			queues.shift();
+			if (queues.length > 0) {
+				await playSong(guildId, globalVoiceChannel, globalTextChannel);
+				return;
+			}
 			const embed = new EmbedBuilder()
 				.setTitle('노래를 전부 재생했어!')
 				.setDescription('노래가 1분동안 추가되지 않으면 자동으로 나갈게!')
 				.setColor('#fbb753');
 			globalTextChannel.send({embeds: [embed]});
 			setTimeout(() => {
-				if (queues.length === 0) {
-					const embed = new EmbedBuilder()
-						.setTitle('노래를 전부 재생했어!')
-						.setDescription('노래가 1분동안 추가되지 않아서 나갈게!')
-						.setColor('#fbb753');
-					globalTextChannel?.send({embeds: [embed]});
-					globalConnection?.destroy();
-				}
+				if (queues.length !== 0) return;
+				const embed = new EmbedBuilder()
+					.setTitle('노래를 전부 재생했어!')
+					.setDescription('노래가 1분동안 추가되지 않아서 나갈게!')
+					.setColor('#fbb753');
+				globalTextChannel?.send({embeds: [embed]});
+				globalConnection?.destroy();
 			}, 1000 * 60);
 		}
-	}
-});
-player.on("stateChange", async (oldState, newState) => {
-	if (globalVoiceChannel === null || globalTextChannel === null || globalConnection === null) return;
-	if (newState.status === AudioPlayerStatus.AutoPaused) {
+	});
+	player.on("stateChange", async (oldState, newState) => {
+		if (globalVoiceChannel === null || globalTextChannel === null || globalConnection === null) return;
+		if (newState.status !== AudioPlayerStatus.AutoPaused) return;
 		queues.splice(0)
-		await eventSocket(null, null, null);
-	}
-});
-player.on("error", () => {
-	queues.splice(0);
-});
+		await setChannel(guildId, null, null, null);
+	});
+	player.on("error", () => {
+		queues.splice(0);
+	});
+	getVoiceConnection(guildId)?.subscribe(player);
 
-export function getIsAdding() {
-	return isAdding;
-}
-
-export async function addSongToQueue(guildId:string, song: Song, voiceChannel: VoiceBasedChannel, textChannel: TextBasedChannel, connection: VoiceConnection) {
-	queues.push(song);
-	if (queues.length <= 1) {
-		isAdding = true;
-		await playSong(voiceChannel, textChannel, connection);
-		isAdding = false;
-		await eventSocket(voiceChannel, textChannel, connection);
-	}
-}
-
-async function eventSocket(voiceChannel: VoiceBasedChannel | null, textChannel: TextBasedChannel | null, connection: VoiceConnection | null) {
-	globalVoiceChannel = voiceChannel;
-	globalTextChannel = textChannel;
-	globalConnection = connection;
-}
-
-export function getQueue() {
-	return queues;
-}
-
-export function getQueueLengthPlus() {
-	if(queues.length + 1 === queues.length){
-		return queues.length;
-	}
-	return queues.length + 1;
-}
-
-export function skipSong() {
-	player.stop();
-}
-
-export async function playSong(voiceChannel: VoiceBasedChannel, textChannel: TextBasedChannel, connection: VoiceConnection) {
-	await connection.subscribe(player);
 	const video = queues[0].video;
-	const resource = queues[0].audioSource;
-	await player.play(resource);
+	player.play(resource);
 
 	const successEmbed = new EmbedBuilder()
 		.setAuthor({
