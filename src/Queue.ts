@@ -72,13 +72,15 @@ export async function playSong(guildId: string, voiceChannel: VoiceBasedChannel,
 			globalTextChannel[guildId]?.send({embeds: [embed]});
 			setTimeout(() => {
 				if (getQueue(guildId) !== 0) return;
-				const embed = new EmbedBuilder()
-					.setTitle('노래를 전부 재생했어!')
-					.setDescription('노래가 1분동안 추가되지 않아서 나갈게!')
-					.setColor('#fbb753');
-				globalTextChannel[guildId]?.send({embeds: [embed]});
-				globalConnection[guildId]?.destroy();
-			}, 1000 * 60);
+				if(globalConnection[guildId]?.state?.status === "ready"){
+					const embed = new EmbedBuilder()
+						.setTitle('노래를 전부 재생했어!')
+						.setDescription('노래가 1분동안 추가되지 않아서 나갈게!')
+						.setColor('#fbb753');
+					globalTextChannel[guildId]?.send({embeds: [embed]});
+					globalConnection[guildId]?.destroy();
+				}
+			}, 1000 * 3);
 		}
 	});
 	player.on("stateChange", async (oldState, newState) => {
