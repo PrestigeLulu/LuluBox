@@ -3,7 +3,7 @@ import {addSongToQueue, getQueue, getTime} from '../../Queue';
 import SlashCommand from "../../Structures/SlashCommand";
 import play from 'play-dl';
 import {createAudioPlayer, createAudioResource, joinVoiceChannel} from "@discordjs/voice";
-import {Song} from "../../DataBase/Interface/Song";
+import {Song} from "../../Interface/Song";
 
 const slashCommandBuilder = new SlashCommandBuilder()
 	.setName('play')
@@ -17,7 +17,6 @@ const slashCommandBuilder = new SlashCommandBuilder()
 
 const PlayCommand = new SlashCommand(slashCommandBuilder, ['p'], async (bot, interaction) => {
 	const song = interaction.options.getString('song', true);
-	await getQueue(interaction.guildId!)
 	if (!(!(interaction.member instanceof GuildMember) || interaction.member.partial)) {
 		const channel = interaction.member?.voice.channel;
 		if (!channel) {
@@ -51,9 +50,9 @@ const PlayCommand = new SlashCommand(slashCommandBuilder, ['p'], async (bot, int
 						return;
 					}
 					const embed = new EmbedBuilder()
-						/*.setAuthor({
-							name: (getQueueLengthPlus()) + '번 대기열에 추가됨!',
-						})*/
+						.setAuthor({
+							name: (getQueue(interaction.guildId!) + 1) + '번 대기열에 추가됨!',
+						})
 						.setURL(video.url)
 						.setTitle(`${video.title}`)
 						.setColor('#fbb753')
@@ -66,7 +65,7 @@ const PlayCommand = new SlashCommand(slashCommandBuilder, ['p'], async (bot, int
 						video: video,
 						audioSource: resource,
 					}
-					await addSongToQueue(interaction.guildId!, songI, channel, interaction.channel!);
+					await addSongToQueue(interaction.guildId!, songI, channel, interaction.channel!, connection);
 				})
 				.catch(async (err: any) => {
 					const embed = new EmbedBuilder()
@@ -85,9 +84,9 @@ const PlayCommand = new SlashCommand(slashCommandBuilder, ['p'], async (bot, int
 			}
 			const video = yt_info[0];
 			const embed = new EmbedBuilder()
-				/*.setAuthor({
-					name: (getQueueLengthPlus()) + '번 대기열에 추가됨!',
-				})*/
+				.setAuthor({
+					name: (getQueue(interaction.guildId!) + 1) + '번 대기열에 추가됨!',
+				})
 				.setURL(video.url)
 				.setTitle(`${video.title}`)
 				.setColor('#fbb753')
@@ -101,7 +100,7 @@ const PlayCommand = new SlashCommand(slashCommandBuilder, ['p'], async (bot, int
 						video: video,
 						audioSource: resource,
 					}
-					await addSongToQueue(interaction.guildId!, songI, channel, interaction.channel!);
+					await addSongToQueue(interaction.guildId!, songI, channel, interaction.channel!, connection);
 				})
 				.catch(async (error: any) => {
 					const embed = new EmbedBuilder()
