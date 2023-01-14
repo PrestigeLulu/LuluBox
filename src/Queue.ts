@@ -80,7 +80,7 @@ export async function playSong(guildId: string, voiceChannel: VoiceBasedChannel,
 					globalTextChannel[guildId]?.send({embeds: [embed]});
 					globalConnection[guildId]?.destroy();
 				}
-			}, 1000 * 3);
+			}, 1000 * 60);
 		}
 	});
 	player.on("stateChange", async (oldState, newState) => {
