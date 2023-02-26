@@ -3,11 +3,11 @@ import {AudioPlayerStatus, createAudioPlayer, VoiceConnection} from "@discordjs/
 import {YouTubeVideo} from "play-dl";
 import {Song} from "./Interface/Song";
 
-const queues: { [key:string]: Song[] } = {};
+const queues: { [key: string]: Song[] } = {};
 
-let globalVoiceChannel: { [key:string]: VoiceBasedChannel | null } = {};
-let globalTextChannel: { [key:string]: TextBasedChannel | null } = {};
-let globalConnection: { [key:string]: VoiceConnection | null } = {};
+let globalVoiceChannel: { [key: string]: VoiceBasedChannel | null } = {};
+let globalTextChannel: { [key: string]: TextBasedChannel | null } = {};
+let globalConnection: { [key: string]: VoiceConnection | null } = {};
 
 
 export async function addSongToQueue(guildId: string, song: Song, voiceChannel: VoiceBasedChannel, textChannel: TextBasedChannel, connection: VoiceConnection) {
@@ -21,20 +21,21 @@ export async function addSongToQueue(guildId: string, song: Song, voiceChannel: 
 
 export function skipSong(guildId: string) {
 	issetInfo(guildId);
+	if (getQueue(guildId) === 0) return;
 	queues[guildId][0].audioSource.audioPlayer?.stop();
 }
 
 function issetInfo(guildId: string) {
-	if(!Object.keys(queues).includes(guildId)) {
+	if (!Object.keys(queues).includes(guildId)) {
 		queues[guildId] = [];
 	}
-	if(!Object.keys(globalVoiceChannel).includes(guildId)) {
+	if (!Object.keys(globalVoiceChannel).includes(guildId)) {
 		globalVoiceChannel[guildId] = null;
 	}
-	if(!Object.keys(globalTextChannel).includes(guildId)) {
+	if (!Object.keys(globalTextChannel).includes(guildId)) {
 		globalTextChannel[guildId] = null;
 	}
-	if(!Object.keys(globalConnection).includes(guildId)) {
+	if (!Object.keys(globalConnection).includes(guildId)) {
 		globalConnection[guildId] = null;
 	}
 }
@@ -67,20 +68,20 @@ export async function playSong(guildId: string, voiceChannel: VoiceBasedChannel,
 			}
 			const embed = new EmbedBuilder()
 				.setTitle('노래를 전부 재생했어!')
-				.setDescription('노래가 1분동안 추가되지 않으면 자동으로 나갈게!')
+				.setDescription('노래가 5분동안 추가되지 않으면 자동으로 나갈게!')
 				.setColor('#fbb753');
 			globalTextChannel[guildId]?.send({embeds: [embed]});
 			setTimeout(() => {
 				if (getQueue(guildId) !== 0) return;
-				if(globalConnection[guildId]?.state?.status === "ready"){
+				if (globalConnection[guildId]?.state?.status === "ready") {
 					const embed = new EmbedBuilder()
 						.setTitle('노래를 전부 재생했어!')
-						.setDescription('노래가 1분동안 추가되지 않아서 나갈게!')
+						.setDescription('노래가 5분동안 추가되지 않아서 나갈게!')
 						.setColor('#fbb753');
 					globalTextChannel[guildId]?.send({embeds: [embed]});
 					globalConnection[guildId]?.destroy();
 				}
-			}, 1000 * 60);
+			}, 5000 * 60);
 		}
 	});
 	player.on("stateChange", async (oldState, newState) => {

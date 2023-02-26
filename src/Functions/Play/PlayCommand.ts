@@ -2,7 +2,7 @@ import {EmbedBuilder, GuildMember, SlashCommandBuilder} from "discord.js";
 import {addSongToQueue, getQueue, getTime} from '../../Queue';
 import SlashCommand from "../../Structures/SlashCommand";
 import play from 'play-dl';
-import {createAudioPlayer, createAudioResource, joinVoiceChannel} from "@discordjs/voice";
+import {createAudioResource, joinVoiceChannel} from "@discordjs/voice";
 import {Song} from "../../Interface/Song";
 
 const slashCommandBuilder = new SlashCommandBuilder()
@@ -31,12 +31,49 @@ const PlayCommand = new SlashCommand(slashCommandBuilder, ['p'], async (bot, int
 			guildId: channel.guild.id,
 			adapterCreator: channel.guild.voiceAdapterCreator
 		});
-		if (song.startsWith('https://youtu.be/watch?v=') || song.startsWith('https://www.youtu.be/watch?v=') || song.startsWith('https://youtube.com/watch?v=') || song.startsWith('https://www.youtube.com/watch?v=')) {
+		if (song.startsWith('https://youtu.be') || song.startsWith('https://www.youtu.be') || song.startsWith('https://youtube.com') || song.startsWith('https://www.youtube.com')) {
 			if (!(await play.validate(song))) {
 				const embed = new EmbedBuilder()
 					.setTitle('유효하지 않은 링크야!')
 					.setColor('#fbb753')
 				await interaction.reply({embeds: [embed]});
+				return;
+			}
+			if (song.includes('&list') || song.includes('?list') || song.includes('playlist?list')) {
+				let url = song;
+				if(song.includes('watch?v=')) {
+					url = 'https://www.youtube.com/playlist?list=' + song.split('list=')[1].split('&')[0];
+				}
+				await play.playlist_info(url)
+					.then(async (yt_info) => {
+						const embed = new EmbedBuilder()
+							.setAuthor({
+								name: '재생목록을 추가했어!',
+							})
+							.setTitle(`${yt_info.title}`)
+							.setColor('#fbb753')
+							.setURL(yt_info.url!)
+							.setThumbnail(yt_info.thumbnail!.url)
+						await interaction.reply({embeds: [embed]}).catch((error: any) => console.log(error));
+						yt_info.all_videos().then(async (video) => {
+							for (const video1 of video) {
+								const stream = await play.stream(video1.url);
+								const resource = await createAudioResource(stream.stream, {inputType: stream.type});
+								const songI: Song = {
+									video: video1,
+									audioSource: resource,
+								}
+								await addSongToQueue(interaction.guildId!, songI, channel, interaction.channel!, connection);
+							}
+						})
+					})
+					.catch(async (err: any) => {
+						const embed = new EmbedBuilder()
+							.setTitle('알수없는 오류야!')
+							.setDescription(err.message)
+							.setColor('#fbb753')
+						await interaction.reply({embeds: [embed]});
+					})
 				return;
 			}
 			await play.video_info(song)
